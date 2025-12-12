@@ -1,0 +1,5 @@
+{
+  "name": "DesignRVT Treker",
+  "description": "A team project management tool with Gantt charts, role-based access control, and stage tracking.",
+  "requestFramePermissions": []
+}
