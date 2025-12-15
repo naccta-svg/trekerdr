@@ -9,7 +9,6 @@ import { ClientView } from './components/ClientView';
 import { ProjectChecks } from './components/ProjectChecks';
 import { User, Project, UserRole, ProjectStage, ROLE_TRANSLATIONS } from './types';
 import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, User as UserIcon, Layout, Upload, List } from 'lucide-react';
-import React, { useState } from 'react';
 import { db } from './firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
 
