@@ -212,13 +212,13 @@ setStatus(`Ошибка: ${e.message}`);
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-bold text-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
-<h1>Тест подключения к Firebase</h1>
-      
-      <button onClick={handleAddProject}>
-        Добавить тестовый проект в Firestore
-      </button>
-      
-      <p>Статус: {status}</p>
+<div style={{ padding: '20px' }}>
+        <H1>Тест подключения к Firebase</H1>
+        <button onClick={handleAddProject}>
+            Добавить тестовый проект в Firestore
+        </button>
+        <p>Статус: {status}</p>
+    </div>
 
       {/* ... Остальной код вашего приложения ... */}
     </div>
