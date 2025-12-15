@@ -213,14 +213,7 @@ setStatus(`Ошибка: ${e.message}`);
             <Layout size={20} />
           </button>
 <div style={{ padding: '20px' }}>
-        <H1>Тест подключения к Firebase</H1>
-        <button onClick={handleAddProject}>
-            Добавить тестовый проект в Firestore
-        </button>
-        <p>Статус: {status}</p>
-    </div>
 
-      {/* ... Остальной код вашего приложения ... */}
     </div>
   );
           
@@ -468,6 +461,16 @@ setStatus(`Ошибка: ${e.message}`);
       />
     </div>
   );
+{/* Тестовый блок Firebase, который видно только админам */}
+{currentUser.role === 'ADMIN' && (
+    <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
+        <h3>ТЕСТ FIREBASE</h3>
+        <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
+            Добавить тестовый проект
+        </button>
+        <p style={{ margin: '5px 0' }}>Статус: {status}</p>
+    </div>
+)}
 };
 
 function isAdmin(user: User) {
