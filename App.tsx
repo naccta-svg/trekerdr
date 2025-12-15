@@ -9,6 +9,9 @@ import { ClientView } from './components/ClientView';
 import { ProjectChecks } from './components/ProjectChecks';
 import { User, Project, UserRole, ProjectStage, ROLE_TRANSLATIONS } from './types';
 import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, User as UserIcon, Layout, Upload, List } from 'lucide-react';
+import React, { useState } from 'react';
+import { db } from './firebaseConfig';
+import { collection, addDoc } from 'firebase/firestore';
 
 // --- MOCK DATA ---
 const INITIAL_USERS: User[] = [
@@ -53,6 +56,22 @@ const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
+const [status, setStatus] = useState('');
+const handleAddProject = async () => {
+    setStatus('Отправка данных...');
+    try {
+      // Запись тестовой записи в коллекцию 'test_projects'
+      const docRef = await addDoc(collection(db, "test_projects"), {
+        projectName: "Тестовый проект из Vercel",
+        clientName: "Клиент-тестер",
+        dateAdded: new Date().toISOString(),
+        isActive: true
+      });
+setStatus(`Успех! Документ добавлен с ID: ${docRef.id}`);
+    } catch (e) {
+setStatus(`Ошибка: ${e.message}`);
+    }
+  };
   
   // Client Direct Link Simulation
   const [clientProject, setClientProject] = useState<Project | null>(null);
@@ -194,6 +213,17 @@ const App: React.FC = () => {
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-bold text-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
+<h1>Тест подключения к Firebase</h1>
+      
+      <button onClick={handleAddProject}>
+        Добавить тестовый проект в Firestore
+      </button>
+      
+      <p>Статус: {status}</p>
+
+      {/* ... Остальной код вашего приложения ... */}
+    </div>
+  );
           
           {currentUser.role === UserRole.ADMIN && (
             <>
