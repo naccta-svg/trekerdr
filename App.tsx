@@ -55,22 +55,7 @@ const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
-const [status, setStatus] = useState('');
-const handleAddProject = async () => {
-    setStatus('Отправка данных...');
-    try {
-      // Запись тестовой записи в коллекцию 'test_projects'
-      const docRef = await addDoc(collection(db, "test_projects"), {
-        projectName: "Тестовый проект из Vercel",
-        clientName: "Клиент-тестер",
-        dateAdded: new Date().toISOString(),
-        isActive: true
-      });
-setStatus(`Успех! Документ добавлен с ID: ${docRef.id}`);
-    } catch (e) {
-setStatus(`Ошибка: ${e.message}`);
-    }
-  };
+
   
   // Client Direct Link Simulation
   const [clientProject, setClientProject] = useState<Project | null>(null);
@@ -286,12 +271,6 @@ setStatus(`Ошибка: ${e.message}`);
           <LogOut size={24} />
         </button>
       </aside>
-<div style={{ padding: '20px', border: '1px solid blue', marginBottom: '20px' }}>
-    <button onClick={handleAddProject} style={{ padding: '10px', backgroundColor: 'green', color: 'white' }}>
-        ТЕСТ FIREBASE: Нажми, чтобы записать данные
-    </button>
-    <p>Статус: {status}</p>
-</div>
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         <header className="mb-8 flex justify-between items-center">
