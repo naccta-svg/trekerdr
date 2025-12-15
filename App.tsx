@@ -286,7 +286,12 @@ setStatus(`Ошибка: ${e.message}`);
           <LogOut size={24} />
         </button>
       </aside>
-
+<div style={{ padding: '20px', border: '1px solid blue', marginBottom: '20px' }}>
+    <button onClick={handleAddProject} style={{ padding: '10px', backgroundColor: 'green', color: 'white' }}>
+        ТЕСТ FIREBASE: Нажми, чтобы записать данные
+    </button>
+    <p>Статус: {status}</p>
+</div>
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         <header className="mb-8 flex justify-between items-center">

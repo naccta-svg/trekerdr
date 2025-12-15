@@ -1,0 +1,12 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+const firebaseConfig = {
+  apiKey: "AIzaSyCW470aOJIYbd9SouhxiQfJ-S5Hx5M_ZKg",
+  authDomain: "treker-app-7d1fa.firebaseapp.com",
+  projectId: "treker-app-7d1fa",
+  storageBucket: "treker-app-7d1fa.firebasestorage.app",
+  messagingSenderId: "942599864450",
+  appId: "1:942599864450:web:bc74ac96eb9bbd2919b49b"
+};
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
