@@ -10,7 +10,7 @@ import { ProjectChecks } from './components/ProjectChecks';
 import { User, Project, UserRole, ProjectStage, ROLE_TRANSLATIONS } from './types';
 import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, User as UserIcon, Layout, Upload, List } from 'lucide-react';
 import { db } from './firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
 
 // --- MOCK DATA ---
 const INITIAL_USERS: User[] = [
@@ -158,6 +158,27 @@ const App: React.FC = () => {
           setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
           setCurrentUser(updated);
       }
+const fetchUsers = async () => {
+        try {
+            // Предполагаем, что коллекция пользователей называется "users"
+            const querySnapshot = await getDocs(collection(db, "users")); 
+            const userList = [];
+            querySnapshot.forEach((doc) => {
+                // Преобразование данных из Firestore в формат вашего приложения
+                userList.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Обновляем состояние (предполагая, что у вас есть setUsers)
+            setUsers(userList); 
+            console.log("Пользователи успешно загружены.");
+
+        } catch (error) {
+            console.error("Ошибка при загрузке пользователей:", error);
+        }
+    };
+useEffect(() => {
+        fetchUsers();
+    }, []); // Пустой массив зависимостей гарантирует, что это запустится только один раз при загрузке
   };
 
   // Logic to filter projects
