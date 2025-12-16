@@ -126,10 +126,24 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCreateUser = (newUser: Omit<User, 'id'>) => {
-    const userWithId = { ...newUser, id: Math.random().toString(36).substr(2, 9) };
+const handleCreateUser = async (newUser: Omit<User, 'id'>) => {
+  try {
+    // 1. Сохраняем данные в Firebase в коллекцию "users"
+    const docRef = await addDoc(collection(db, "users"), newUser);
+    
+    // 2. Добавляем в локальный список для мгновенного обновления экрана
+    const userWithId = { ...newUser, id: docRef.id };
     setUsers(prev => [...prev, userWithId]);
-  };
+    
+    // 3. Закрываем форму
+    setIsUserModalOpen(false);
+    
+    console.log("Пользователь успешно сохранен в Firebase!");
+  } catch (error) {
+    console.error("Ошибка при сохранении пользователя:", error);
+    alert("Ошибка базы данных. Проверьте подключение.");
+  }
+};
 
   const handleUpdateUser = (updatedUser: User) => {
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
