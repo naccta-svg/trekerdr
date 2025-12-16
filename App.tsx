@@ -12,11 +12,8 @@ import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, User as UserIc
 import { db } from './firebaseConfig';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 
-// --- MOCK DATA ИЗ ОРИГИНАЛА ---
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', password: '123456', role: UserRole.ADMIN, fullName: 'Super Admin' },
-  { id: '2', username: 'arch1', password: 'password', role: UserRole.ARCHITECT, fullName: 'Александр Громов' },
-  { id: '7', username: 'des1', password: 'password', role: UserRole.DESIGNER, fullName: 'Елена Соколова' },
 ];
 
 const INITIAL_PROJECTS: Project[] = [
@@ -49,25 +46,11 @@ export const App: React.FC = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
-  const [status, setStatus] = useState<string>('Готов');
+  const [status, setStatus] = useState<string>('Ожидание...');
 
-  // Эффект загрузки данных из Firebase
   useEffect(() => {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-    const fetchData = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const firebaseUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-        if (firebaseUsers.length > 0) {
-          setUsers([...INITIAL_USERS, ...firebaseUsers]);
-        }
-      } catch (e) {
-        console.error("Firebase fetch error", e);
-      }
-    };
-    fetchData();
   }, []);
 
   const handleLogin = (user: User) => {
@@ -80,20 +63,23 @@ export const App: React.FC = () => {
     localStorage.removeItem('currentUser');
   };
 
-  const handleCreateProject = async (projectData: Partial<Project>) => {
+  const handleAddProject = async () => {
     try {
-      setStatus('Сохранение проекта...');
-      const docRef = await addDoc(collection(db, "projects"), projectData);
-      const newProject = { ...projectData, id: docRef.id } as Project;
-      setProjects([...projects, newProject]);
-      setIsProjectModalOpen(false);
-      setStatus('Готов');
+      setStatus('Отправка в Firebase...');
+      const docRef = await addDoc(collection(db, "test_projects"), {
+        name: "Тестовый проект " + new Date().toLocaleTimeString(),
+        createdAt: new Date()
+      });
+      setStatus('Успешно! ID: ' + docRef.id);
     } catch (e) {
-      // Резервный вариант, если Firebase не ответил
-      const newProject = { ...projectData, id: Math.random().toString(36).substr(2, 9) } as Project;
-      setProjects([...projects, newProject]);
-      setIsProjectModalOpen(false);
+      setStatus('Ошибка: ' + (e as Error).message);
     }
+  };
+
+  const handleCreateProject = (projectData: Partial<Project>) => {
+    const newProject = { ...projectData, id: Math.random().toString(36).substr(2, 9) } as Project;
+    setProjects([...projects, newProject]);
+    setIsProjectModalOpen(false);
   };
 
   const handleUpdateProject = (projectData: Partial<Project>) => {
@@ -108,19 +94,10 @@ export const App: React.FC = () => {
     setSelectedProject(undefined);
   };
 
-  const handleCreateUser = async (userData: Partial<User>) => {
-    try {
-      setStatus('Создание пользователя...');
-      const docRef = await addDoc(collection(db, "users"), userData);
-      const newUser = { ...userData, id: docRef.id } as User;
-      setUsers([...users, newUser]);
-      setIsUserModalOpen(false);
-      setStatus('Готов');
-    } catch (e) {
-      const newUser = { ...userData, id: Math.random().toString(36).substr(2, 9) } as User;
-      setUsers([...users, newUser]);
-      setIsUserModalOpen(false);
-    }
+  const handleCreateUser = (userData: Partial<User>) => {
+    const newUser = { ...userData, id: Math.random().toString(36).substr(2, 9) } as User;
+    setUsers([...users, newUser]);
+    setIsUserModalOpen(false);
   };
 
   const handleUpdateUser = (userData: Partial<User>) => {
@@ -133,11 +110,8 @@ export const App: React.FC = () => {
 
   const isAdmin = (user: User | null) => user?.role === UserRole.ADMIN;
 
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} users={users} />;
-  }
+  if (!currentUser) return <Login onLogin={handleLogin} users={users} />;
 
-  // --- ЛОГИКА ОТОБРАЖЕНИЯ ДЛЯ КЛИЕНТА ---
   if (currentUser.role === UserRole.CLIENT) {
     const clientProject = projects.find(p => p.clientPhone === currentUser.username);
     return <ClientView project={clientProject || null} currentUser={currentUser} onLogout={handleLogout} />;
@@ -150,37 +124,20 @@ export const App: React.FC = () => {
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
-          
           <nav className="flex md:flex-col gap-4">
-            <button onClick={() => setCurrentView('DASHBOARD')} className={`p-2 rounded-lg transition-colors ${currentView === 'DASHBOARD' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
-              <Folder size={20} />
-            </button>
+            <button onClick={() => setCurrentView('DASHBOARD')} title="Все проекты" className={`p-2 rounded-lg ${currentView === 'DASHBOARD' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Folder size={20} /></button>
             {isAdmin(currentUser) && (
               <>
-                <button onClick={() => setCurrentView('ARCHITECTS')} className={`p-2 rounded-lg ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <HardHat size={20} />
-                </button>
-                <button onClick={() => setCurrentView('DESIGNERS')} className={`p-2 rounded-lg ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <Smile size={20} />
-                </button>
-                <button onClick={() => setCurrentView('FINANCES')} className={`p-2 rounded-lg ${currentView === 'FINANCES' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <Receipt size={20} />
-                </button>
-                <button onClick={() => setCurrentView('PROJECT_CHECKS')} className={`p-2 rounded-lg ${currentView === 'PROJECT_CHECKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <Upload size={20} />
-                </button>
-                <button onClick={() => setCurrentView('LINKS')} className={`p-2 rounded-lg ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <List size={20} />
-                </button>
+                <button onClick={() => setCurrentView('ARCHITECTS')} className={`p-2 rounded-lg ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><HardHat size={20} /></button>
+                <button onClick={() => setCurrentView('DESIGNERS')} className={`p-2 rounded-lg ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Smile size={20} /></button>
+                <button onClick={() => setCurrentView('FINANCES')} className={`p-2 rounded-lg ${currentView === 'FINANCES' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Receipt size={20} /></button>
+                <button onClick={() => setCurrentView('LINKS')} className={`p-2 rounded-lg ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><List size={20} /></button>
               </>
             )}
           </nav>
         </div>
-
         <div className="flex md:flex-col gap-4 items-center">
-          <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 rounded-lg">
-            <LogOut size={20} />
-          </button>
+          <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 rounded-lg"><LogOut size={20} /></button>
           <div className="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-medium text-xs border-2 border-white shadow-sm">
             {currentUser.fullName[0]}
           </div>
@@ -198,12 +155,8 @@ export const App: React.FC = () => {
                 </div>
                 {isAdmin(currentUser) && (
                   <div className="flex gap-3">
-                    <button onClick={() => setIsUserModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
-                      <UserPlus size={18} /> Добавить пользователя
-                    </button>
-                    <button onClick={() => { setSelectedProject(undefined); setIsProjectModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium shadow-md">
-                      <Plus size={18} /> Новый проект
-                    </button>
+                    <button onClick={() => setIsUserModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm font-medium"><UserPlus size={18} /> Сотрудник</button>
+                    <button onClick={() => { setSelectedProject(undefined); setIsProjectModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium shadow-md"><Plus size={18} /> Новый проект</button>
                   </div>
                 )}
               </div>
@@ -212,35 +165,22 @@ export const App: React.FC = () => {
             </div>
           )}
 
-          {currentView === 'ARCHITECTS' && <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
-          {currentView === 'DESIGNERS' && <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
-          {currentView === 'FINANCES' && <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />}
-          {currentView === 'PROJECT_CHECKS' && <ProjectChecks projects={projects} />}
-          {currentView === 'LINKS' && <ProjectLinksList projects={projects} />}
+          {currentView === 'ARCHITECTS' && isAdmin(currentUser) && <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
+          {currentView === 'DESIGNERS' && isAdmin(currentUser) && <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
+          {currentView === 'LINKS' && isAdmin(currentUser) && <ProjectLinksList projects={projects} />}
+          {currentView === 'FINANCES' && isAdmin(currentUser) && <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />}
+        </div>
+
+        {/* Тестовый блок Firebase */}
+        <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
+          <h3>TECT FIREBASE</h3>
+          <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>Добавить проект</button>
+          <p>Статус: {status}</p>
         </div>
       </main>
 
-      <ProjectModal
-        isOpen={isProjectModalOpen}
-        onClose={() => setIsProjectModalOpen(false)}
-        onSave={selectedProject ? handleUpdateProject : handleCreateProject}
-        onDelete={handleDeleteProject}
-        initialProject={selectedProject}
-        currentUserRole={currentUser.role}
-        users={users}
-      />
-
-      <UserModal
-        isOpen={isUserModalOpen}
-        onClose={() => setIsUserModalOpen(false)}
-        onSave={handleCreateUser}
-      />
-
-      <div className="fixed bottom-4 right-4 bg-white border px-3 py-1 rounded-full text-[10px] text-gray-400">
-        Статус: {status}
-      </div>
+      <ProjectModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} onSave={selectedProject ? handleUpdateProject : handleCreateProject} onDelete={handleDeleteProject} initialProject={selectedProject} currentUserRole={currentUser.role} users={users} />
+      <UserModal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} onSave={handleCreateUser} />
     </div>
   );
 };
-
-export default App;
