@@ -15,9 +15,6 @@ import { collection, addDoc, getDocs } from 'firebase/firestore';
 // --- MOCK DATA ---
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', password: '123456', role: UserRole.ADMIN, fullName: 'Super Admin' },
-  // Architects
-  // Designers
-  // Clients
 ];
 
 const INITIAL_PROJECTS: Project[] = [
@@ -30,222 +27,108 @@ const INITIAL_PROJECTS: Project[] = [
     architectId: '2',
     designerId: '7',
     dates: {
-      mounting: '2023-11-15',
-      electric: '2023-12-01',
-      edit1: '2023-12-10',
-      edit2: '2024-01-05',
-      edit3: '2024-01-20'
+      mounting: '2023-11-05',
+      measurement: '2023-11-10',
+      electric: '2023-11-20',
+      plumbing: '2023-11-25',
+      walls: '2023-12-05',
+      floor: '2023-12-15',
+      ceiling: '2023-12-25',
+      furniture: '2024-01-20',
+      cleaning: '2024-02-10'
     },
-    links: { source: '', visuals: '', tor: '', pdf: '', dwg: '', hvac: '' },
-    financials: { area: 100, costPerMeterStudio: 5000, costPerMeterArch: 2000, prepaymentDate: '', paymentDate: '' }
+    clientName: 'Иван Иванов',
+    clientPhone: '+7 900 123 45 67',
+    totalBudget: 5000000,
+    paidAmount: 2000000,
+    contractNumber: 'Д-2023-001'
   }
 ];
 
-type ViewState = 'DASHBOARD' | 'ARCHITECTS' | 'DESIGNERS' | 'LINKS' | 'FINANCES' | 'ALL_PROJECTS';
-
-const App: React.FC = () => {
+export const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
-
-  
-// Client Direct Link simulation
-  const [clientProject, setClientProject] = useState<Project | null>(null);
-
-  // ОБЪЕДИНЕННЫЙ БЛОК ПРОВЕРКИ ССЫЛОК
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
-    // 1. Ссылка для клиента
-    const projectId = params.get('project');
-    if (projectId) {
-      const p = projects.find(proj => proj.id === projectId);
-      if (p) setClientProject(p);
-    }
-
-    // 2. Ссылка для автоматического входа (login_token)
-    const loginToken = params.get('login_token');
-    if (loginToken) {
-      const user = users.find(u => u.id === loginToken);
-      if (user) {
-        setCurrentUser(user);
-        window.history.replaceState({}, document.title, "/");
-      }
-    }
-  }, [projects, users]); // Строка 75 теперь будет закрыта корректно
-
-  // UI State
-  
-  // UI State
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'ARCHITECTS' | 'DESIGNERS' | 'LINKS' | 'FINANCES' | 'PROJECT_CHECKS'>('DASHBOARD');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [loginError, setLoginError] = useState('');
+  const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
+  const [status, setStatus] = useState<string>('Ожидание...');
 
-  const handleLogin = (u: string, p: string) => {
-    const user = users.find(usr => usr.username === u && usr.password === p);
-    if (user) {
-      setCurrentUser(user);
-      setLoginError('');
-      setCurrentView('DASHBOARD');
-    } else {
-      setLoginError('Неверный логин или пароль');
-    }
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+  }, []);
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    setSelectedProject(null);
+    localStorage.removeItem('currentUser');
+  };
+
+  const handleAddProject = async () => {
+    try {
+      setStatus('Отправка в Firebase...');
+      const docRef = await addDoc(collection(db, "test_projects"), {
+        name: "Тестовый проект " + new Date().toLocaleTimeString(),
+        createdAt: new Date()
+      });
+      setStatus('Успешно! ID: ' + docRef.id);
+    } catch (e) {
+      console.error("Ошибка Firebase: ", e);
+      setStatus('Ошибка: ' + (e as Error).message);
+    }
+  };
+
+  const handleCreateProject = (projectData: Partial<Project>) => {
+    const newProject: Project = {
+      ...projectData,
+      id: Math.random().toString(36).substr(2, 9),
+    } as Project;
+    setProjects([...projects, newProject]);
     setIsProjectModalOpen(false);
-    setCurrentView('DASHBOARD');
-    setClientProject(null); // Reset client view if they logout (though client view usually doesn't have logout button if accessed via link)
   };
 
-  const handleCreateProject = (newProject: Project) => {
-    setProjects(prev => [...prev, newProject]);
+  const handleUpdateProject = (projectData: Partial<Project>) => {
+    setProjects(projects.map(p => p.id === projectData.id ? { ...p, ...projectData } : p));
+    setIsProjectModalOpen(false);
+    setSelectedProject(undefined);
   };
 
-  const handleUpdateProject = (updatedProject: Project) => {
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+  const handleDeleteProject = (id: string) => {
+    setProjects(projects.filter(p => p.id !== id));
+    setIsProjectModalOpen(false);
+    setSelectedProject(undefined);
   };
 
-  const handleDeleteProject = (projectId: string) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот проект?')) {
-        setProjects(prev => prev.filter(p => p.id !== projectId));
-        setIsProjectModalOpen(false);
-        setSelectedProject(null);
-    }
-  };
-
-const handleCreateUser = async (newUser: any) => {
-  try {
-    // 1. Готовим данные так, чтобы логин точно попал в поле username
-    const dataToSave = {
-      fullName: newUser.fullName,
-      role: newUser.role,
-      password: newUser.password,
-      username: newUser.login || newUser.username // это решит проблему с входом
-    };
-
-    // 2. Отправляем в Firebase
-    const docRef = await addDoc(collection(db, "users"), dataToSave);
-    
-    // 3. Обновляем список на экране
-    const userWithId = { ...dataToSave, id: docRef.id };
-    setUsers(prev => [...prev, userWithId as User]);
-    
-    // 4. Закрываем форму
+  const handleCreateUser = (userData: Partial<User>) => {
+    const newUser: User = {
+      ...userData,
+      id: Math.random().toString(36).substr(2, 9),
+    } as User;
+    setUsers([...users, newUser]);
     setIsUserModalOpen(false);
-    
-    alert("Пользователь успешно создан в базе данных!");
-  } catch (error) {
-    console.error("Ошибка сохранения:", error);
-    alert("Произошла ошибка при сохранении в Firebase.");
-  }
-};
-
-  const handleUpdateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
-  const handleDeleteUser = (userId: string) => {
-      if (window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
-          setUsers(prev => prev.filter(u => u.id !== userId));
-      }
+  const handleUpdateUser = (userData: Partial<User>) => {
+    setUsers(users.map(u => u.id === userData.id ? { ...u, ...userData } : u));
   };
 
-  const handleProjectClick = (project: Project) => {
-    setSelectedProject(project);
-    setIsProjectModalOpen(true);
+  const handleDeleteUser = (id: string) => {
+    setUsers(users.filter(u => u.id !== id));
   };
 
-  const handleOpenCreateProject = () => {
-    setSelectedProject(null);
-    setIsProjectModalOpen(true);
-  };
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (currentUser && e.target.files && e.target.files[0]) {
-          const url = URL.createObjectURL(e.target.files[0]);
-          const updated = { ...currentUser, photoUrl: url };
-          setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-          setCurrentUser(updated);
-      }
-const fetchUsers = async () => {
-        try {
-            // Предполагаем, что коллекция пользователей называется "users"
-            const querySnapshot = await getDocs(collection(db, "users")); 
-            const userList = [];
-            querySnapshot.forEach((doc) => {
-                // Преобразование данных из Firestore в формат вашего приложения
-                userList.push({ id: doc.id, ...doc.data() });
-            });
-
-            // Обновляем состояние (предполагая, что у вас есть setUsers)
-            setUsers(userList); 
-            console.log("Пользователи успешно загружены.");
-
-        } catch (error) {
-            console.error("Ошибка при загрузке пользователей:", error);
-        }
-    };
-
-useEffect(() => {
-  fetchUsers(); // Вызываем скачивание из Firebase
-}, []); // [] — значит "выполнить один раз при старте"
-
-useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Ссылка для клиента
-    const projectId = params.get('project');
-    if (projectId) {
-      const p = projects.find(proj => proj.id === projectId);
-      if (p) setClientProject(p);
-    }
-
-    // Ссылка для автоматического входа
-    const loginToken = params.get('login_token');
-    if (loginToken) {
-      const user = users.find(u => u.id === loginToken);
-      if (user) {
-        setCurrentUser(user);
-        window.history.replaceState({}, document.title, "/");
-      }
-    }
-  }, [projects, users]);
-
-  // Logic to filter projects
-const getVisibleProjects = () => {
-    if (!currentUser) return [];
-    if (currentUser.role === UserRole.ADMIN) return projects;
-    if (currentUser.role === UserRole.ARCHITECT) {
-      return projects.filter(p => p.architectId === currentUser.id);
-    }
-    if (currentUser.role === UserRole.DESIGNER) {
-      return projects.filter(p => p.designerId === currentUser.id);
-    }
-    return [];
-  };
-
-  const visibleProjects = getVisibleProjects();
-  
-  // Separate projects by stage
-  const activeProjects = visibleProjects.filter(p => p.stage !== ProjectStage.QUEUE && p.stage !== ProjectStage.COMPLETED);
-  const queueProjects = visibleProjects.filter(p => p.stage === ProjectStage.QUEUE);
-  const completedProjects = visibleProjects.filter(p => p.stage === ProjectStage.COMPLETED);
-
-  // If entering via link, show client view immediately
-  if (clientProject) {
-    return <ClientView project={clientProject} onUpdate={handleUpdateProject} />;
-  }
+  const isAdmin = (user: User | null) => user?.role === UserRole.ADMIN;
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} error={loginError} />;
+    return <Login onLogin={handleLogin} users={users} />;
   }
 
-return (
+  return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
       {/* Sidebar */}
       <aside className="w-full md:w-20 bg-white border-r border-gray-100 flex md:flex-col items-center justify-between p-4 sticky top-0 z-30 shadow-sm">
@@ -253,241 +136,97 @@ return (
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-bold text-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
+          
+          <nav className="flex md:flex-col gap-4">
+            <button onClick={() => setCurrentView('DASHBOARD')} title="Все проекты" className={`p-2 rounded-lg transition-colors ${currentView === 'DASHBOARD' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
+              <Folder size={20} />
+            </button>
+            {isAdmin(currentUser) && (
+              <>
+                <button onClick={() => setCurrentView('ARCHITECTS')} title="Архитекторы" className={`p-2 rounded-lg transition-colors ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
+                  <HardHat size={20} />
+                </button>
+                <button onClick={() => setCurrentView('DESIGNERS')} title="Дизайнеры" className={`p-2 rounded-lg transition-colors ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
+                  <Smile size={20} />
+                </button>
+                <button onClick={() => setCurrentView('FINANCES')} title="Финансы" className={`p-2 rounded-lg transition-colors ${currentView === 'FINANCES' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
+                  <Receipt size={20} />
+                </button>
+                <button onClick={() => setCurrentView('LINKS')} title="Ссылки" className={`p-2 rounded-lg transition-colors ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-50'}`}>
+                  <List size={20} />
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
+
+        <div className="flex md:flex-col gap-4 items-center">
+          <button onClick={handleLogout} title="Выход" className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+            <LogOut size={20} />
+          </button>
+          <div className="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-medium text-xs border-2 border-white shadow-sm">
+            {currentUser.fullName[0]}
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-        <div style={{ padding: '20px' }}>
+        <div className="max-w-7xl mx-auto">
+          {currentView === 'DASHBOARD' && (
+            <div className="space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Проекты студии</h1>
+                  <p className="text-gray-500 mt-1">Добро пожаловать, {currentUser.fullName}</p>
+                </div>
+                {isAdmin(currentUser) && (
+                  <div className="flex gap-3">
+                    <button onClick={() => setIsUserModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium shadow-sm">
+                      <UserPlus size={18} />
+                      Добавить пользователя
+                    </button>
+                    <button onClick={() => { setSelectedProject(undefined); setIsProjectModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all font-medium shadow-md shadow-brand-100">
+                      <Plus size={18} />
+                      Новый проект
+                    </button>
+                  </div>
+                )}
+              </div>
+              <GanttChart projects={projects} onProjectClick={(p) => { setSelectedProject(p); setIsProjectModalOpen(true); }} />
+              <AllProjectsList projects={projects} />
+            </div>
+          )}
 
-         
-          {currentUser.role === UserRole.ADMIN && (
-            <>
-              <button 
-                onClick={() => setCurrentView('ALL_PROJECTS')}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all tooltip ${currentView === 'ALL_PROJECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50'}`}
-                title="Все проекты (Список)"
-              >
-                <List size={24} />
-              </button>
+          {currentView === 'ARCHITECTS' && isAdmin(currentUser) && (
+            <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
+          )}
 
-              <button 
-                onClick={() => setCurrentView('ARCHITECTS')}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all tooltip ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50'}`}
-                title="Архитекторы"
-              >
-                <HardHat size={24} />
-              </button>
+          {currentView === 'DESIGNERS' && isAdmin(currentUser) && (
+            <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
+          )}
 
-              <button 
-                onClick={() => setCurrentView('DESIGNERS')}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all tooltip ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50'}`}
-                title="Дизайнеры"
-              >
-                <Folder size={24} />
-              </button>
+          {currentView === 'LINKS' && isAdmin(currentUser) && (
+            <ProjectLinksList projects={projects} />
+          )}
 
-              <button 
-                onClick={() => setCurrentView('LINKS')}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all tooltip ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:text-brand-600 hover:bg-brand-50'}`}
-                title="Проекты и Ссылки"
-              >
-                <Smile size={24} />
-              </button>
-
-              <button 
-                onClick={() => setCurrentView('FINANCES')}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all tooltip ${currentView === 'FINANCES' ? 'bg-yellow-50 text-yellow-600' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
-                title="Финансы"
-              >
-                <Receipt size={24} />
-              </button>
-
-               <button 
-                onClick={() => setIsUserModalOpen(true)}
-                className="w-10 h-10 text-brand-500 hover:text-brand-600 hover:bg-brand-50 rounded-xl flex items-center justify-center transition-all"
-                title="Добавить пользователя"
-              >
-                <UserPlus size={24} />
-              </button>
-              
-              <button 
-                onClick={handleOpenCreateProject}
-                className="w-10 h-10 text-brand-500 hover:text-brand-600 hover:bg-brand-50 rounded-xl flex items-center justify-center transition-all"
-                title="Новый проект"
-              >
-                <Plus size={24} />
-              </button>
-            </>
+          {currentView === 'FINANCES' && isAdmin(currentUser) && (
+            <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />
           )}
         </div>
 
-        <button 
-          onClick={handleLogout}
-          className="w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center transition-all"
-          title="Выход"
-        >
-          <LogOut size={24} />
-        </button>
-      </aside>
-      {/* Main Content */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-        <header className="mb-8 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-             {/* Designer Logo in Header */}
-             {currentUser.role === UserRole.DESIGNER && (
-                <div className="relative group w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    {currentUser.photoUrl ? (
-                        <img src={currentUser.photoUrl} alt="Logo" className="w-full h-full object-cover" />
-                    ) : (
-                        <UserIcon size={24} className="text-gray-400" />
-                    )}
-                    <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
-                        <Upload size={20} />
-                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                    </label>
-                </div>
-             )}
-
-             <div>
-                <h1 className="text-3xl font-light text-gray-800 uppercase tracking-tight">
-                {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.DESIGNER) 
-                    ? `Привет, ${currentUser.fullName || currentUser.username}` 
-                    : 'Панель управления'
-                }
-                </h1>
-                <p className="text-sm text-gray-400 mt-1 capitalize">
-                {ROLE_TRANSLATIONS[currentUser.role]}
-                </p>
-             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Architect Header Info */}
-            {currentUser.role === UserRole.ARCHITECT && (
-                <div className="text-right hidden md:block">
-                    <p className="text-sm text-gray-600 font-medium">{currentUser.dob ? `Дата рождения: ${currentUser.dob}` : ''}</p>
-                </div>
-            )}
-             
-            {/* Top Right Exit Button */}
-            <button 
-              onClick={handleLogout}
-              className="w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center transition-all md:hidden"
-              title="Выход"
-            >
-              <LogOut size={24} />
-            </button>
-             <button 
-              onClick={handleLogout}
-              className="hidden md:flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all font-medium text-sm"
-              title="Выход"
-            >
-              <LogOut size={16} /> Выйти
-            </button>
-          </div>
-        </header>
-
-        {currentView === 'DASHBOARD' && (
-          <>
-            {/* Architect Profile Block on Dashboard */}
-            {currentUser.role === UserRole.ARCHITECT && (
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8 flex flex-col md:flex-row gap-6 items-center md:items-start">
-                    <div className="w-32 h-32 flex-shrink-0">
-                         {currentUser.photoUrl ? (
-                             <img src={currentUser.photoUrl} alt="Me" className="w-full h-full object-cover rounded-2xl" />
-                         ) : (
-                             <div className="w-full h-full bg-gray-100 rounded-2xl flex items-center justify-center text-gray-300"><UserIcon size={40}/></div>
-                         )}
-                    </div>
-                    <div className="flex-grow text-center md:text-left">
-                        <h2 className="text-2xl font-bold mb-2">{currentUser.fullName}</h2>
-                        <p className="text-gray-600 mb-4">{currentUser.bio || 'Биография не заполнена'}</p>
-                        <div className="flex flex-col md:flex-row gap-4">
-                          <div className="bg-yellow-50 p-4 rounded-xl inline-block text-left">
-                              <p className="text-[10px] uppercase font-bold text-yellow-600 mb-1">Мои Реквизиты</p>
-                              <p className="text-xs font-mono text-gray-700 whitespace-pre-wrap">{currentUser.paymentDetails || 'Не заполнены'}</p>
-                          </div>
-                          <div className="bg-yellow-50 p-4 rounded-xl inline-block text-left">
-                              <p className="text-[10px] uppercase font-bold text-yellow-600 mb-1">Стоимость м2</p>
-                              <p className="text-xs font-mono text-gray-700 whitespace-pre-wrap">{currentUser.costPerM2 || '—'}</p>
-                          </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <GanttChart 
-              title="Активные проекты"
-              projects={activeProjects} 
-              onProjectClick={handleProjectClick}
-              users={users}
-              currentUser={currentUser}
-            />
-
-             {/* Completed Projects for Architect, Admin, AND Designer */}
-            {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.DESIGNER) && (
-                 <GanttChart 
-                    title="Завершенные проекты"
-                    projects={completedProjects} 
-                    onProjectClick={handleProjectClick}
-                    users={users}
-                    currentUser={currentUser}
-                 />
-            )}
-
-            {(currentUser.role === UserRole.ADMIN) && (
-              <>
-                <GanttChart 
-                  title="Проекты в очереди"
-                  projects={queueProjects} 
-                  onProjectClick={handleProjectClick}
-                  users={users}
-                  currentUser={currentUser}
-                />
-
-                <div className="mb-6">
-                   {/* Display ALL Projects Checks for Admin as requested */}
-                   <ProjectChecks projects={visibleProjects} users={users} role={UserRole.ADMIN} startIndex={150} />
-                </div>
-              </>
-            )}
-
-            {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.DESIGNER) && (
-               <ProjectChecks projects={visibleProjects} users={users} role={currentUser.role} />
-            )}
-          </>
-        )}
-
-        {currentView === 'ALL_PROJECTS' && isAdmin(currentUser) && (
-          <AllProjectsList 
-            projects={projects} 
-            users={users} 
-            _onUpdateProject={handleUpdateProject}
-            onProjectClick={handleProjectClick}
-          />
-        )}
-
-        {currentView === 'ARCHITECTS' && isAdmin(currentUser) && (
-          <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
-        )}
-
-        {currentView === 'DESIGNERS' && isAdmin(currentUser) && (
-          <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
-        )}
-
-        {currentView === 'LINKS' && isAdmin(currentUser) && (
-          <ProjectLinksList projects={projects} />
-        )}
-
-        {currentView === 'FINANCES' && isAdmin(currentUser) && (
-          <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />
-        )}
-
+        {/* Тестовый блок Firebase */}
+        <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
+          <h3>TECT FIREBASE</h3>
+          <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
+            Добавить тестовый проект
+          </button>
+          <p style={{ margin: '5px 0' }}>Статус: {status}</p>
+        </div>
       </main>
 
       {/* Modals */}
-<ProjectModal
+      <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
         onSave={selectedProject ? handleUpdateProject : handleCreateProject}
@@ -502,17 +241,7 @@ return (
         onClose={() => setIsUserModalOpen(false)}
         onSave={handleCreateUser}
       />
-
-      {/* Тестовый блок Firebase */}
-      <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
-        <h3>TECT FIREBASE</h3>
-        <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
-          Добавить тестовый проект
-        </button>
-<p style={{ margin: '5px 0' }}>Статус: {status}</p>
-      </div>
-    </main>
-  </div>
+    </div>
   );
 };
 
