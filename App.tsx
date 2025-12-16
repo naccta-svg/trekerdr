@@ -63,17 +63,15 @@ const App: React.FC = () => {
       }
     }
 
-    // Check for login token (Designer Direct Link)
+// Check for login token (Designer Direct Link)
     const loginToken = params.get('login_token');
     if (loginToken) {
-       // Find user by ID
-       const user = users.find(u => u.id === loginToken);
-       if (user) {
-           setCurrentUser(user);
-           // Clear param from url to look cleaner (optional, but good UX)
-           window.history.replaceState({}, document.title, "/");
-       }
-}
+      const user = users.find(u => u.id === loginToken);
+      if (user) {
+        setCurrentUser(user);
+        window.history.replaceState({}, document.title, "/");
+      }
+    }
   }, [projects, users]);
 
 // UI State
