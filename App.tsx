@@ -500,7 +500,7 @@ const getVisibleProjects = () => {
         onSave={handleCreateUser}
       />
 
-      {/* Тестовый блок Firebase, который видно только админам */}
+      {/* Тестовый блок Firebase */}
       <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
         <h3>TECT FIREBASE</h3>
         <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
@@ -508,8 +508,8 @@ const getVisibleProjects = () => {
         </button>
         <p style={{ margin: '5px 0' }}>Статус: {status}</p>
       </div>
-    </div> // Закрывает основной div
-  ); // Закрывает return
-}; // Закрывает функцию App
+    </div>
+  );
+};
 
 export default App;
