@@ -126,22 +126,30 @@ const App: React.FC = () => {
     }
   };
 
-const handleCreateUser = async (newUser: Omit<User, 'id'>) => {
+const handleCreateUser = async (newUser: any) => {
   try {
-    // 1. Сохраняем данные в Firebase в коллекцию "users"
-    const docRef = await addDoc(collection(db, "users"), newUser);
+    // 1. Готовим данные так, чтобы логин точно попал в поле username
+    const dataToSave = {
+      fullName: newUser.fullName,
+      role: newUser.role,
+      password: newUser.password,
+      username: newUser.login || newUser.username // это решит проблему с входом
+    };
+
+    // 2. Отправляем в Firebase
+    const docRef = await addDoc(collection(db, "users"), dataToSave);
     
-    // 2. Добавляем в локальный список для мгновенного обновления экрана
-    const userWithId = { ...newUser, id: docRef.id };
-    setUsers(prev => [...prev, userWithId]);
+    // 3. Обновляем список на экране
+    const userWithId = { ...dataToSave, id: docRef.id };
+    setUsers(prev => [...prev, userWithId as User]);
     
-    // 3. Закрываем форму
+    // 4. Закрываем форму
     setIsUserModalOpen(false);
     
-    console.log("Пользователь успешно сохранен в Firebase!");
+    alert("Пользователь успешно создан в базе данных!");
   } catch (error) {
-    console.error("Ошибка при сохранении пользователя:", error);
-    alert("Ошибка базы данных. Проверьте подключение.");
+    console.error("Ошибка сохранения:", error);
+    alert("Произошла ошибка при сохранении в Firebase.");
   }
 };
 
