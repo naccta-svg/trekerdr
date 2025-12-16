@@ -506,8 +506,9 @@ const getVisibleProjects = () => {
         </button>
 <p style={{ margin: '5px 0' }}>Статус: {status}</p>
       </div>
-    </div> 
-  );
+    </div>
+  </div> 
+);
 };
 
 export default App;
