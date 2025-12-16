@@ -50,20 +50,21 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
 
   
-  // Client Direct Link Simulation
+// Client Direct Link simulation
   const [clientProject, setClientProject] = useState<Project | null>(null);
 
-    
-    // Check for project link (Client View)
+  // ОБЪЕДИНЕННЫЙ БЛОК ПРОВЕРКИ ССЫЛОК
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // 1. Ссылка для клиента
     const projectId = params.get('project');
     if (projectId) {
       const p = projects.find(proj => proj.id === projectId);
-      if (p) {
-        setClientProject(p);
-      }
+      if (p) setClientProject(p);
     }
 
-// Check for login token (Designer Direct Link)
+    // 2. Ссылка для автоматического входа (login_token)
     const loginToken = params.get('login_token');
     if (loginToken) {
       const user = users.find(u => u.id === loginToken);
@@ -72,9 +73,9 @@ const App: React.FC = () => {
         window.history.replaceState({}, document.title, "/");
       }
     }
-  }, [projects, users]);
+  }, [projects, users]); // Строка 75 теперь будет закрыта корректно
 
-// UI State
+  // UI State
   
   // UI State
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
