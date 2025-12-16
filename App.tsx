@@ -55,9 +55,31 @@ export const App: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
   const [status, setStatus] = useState<string>('Ожидание...');
 
+  // ЗАГРУЗКА ПРИ СТАРТЕ
   useEffect(() => {
+    // 1. Сессия пользователя
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+    // 2. Загрузка пользователей из Firebase
+    const fetchUsers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        const usersData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as User[];
+        
+        // Если в базе есть люди, добавляем их к нашему админу
+        if (usersData.length > 0) {
+          setUsers([...INITIAL_USERS, ...usersData]);
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки пользователей:", e);
+      }
+    };
+
+    fetchUsers();
   }, []);
 
   const handleLogin = (user: User) => {
@@ -105,13 +127,19 @@ export const App: React.FC = () => {
     setSelectedProject(undefined);
   };
 
-  const handleCreateUser = (userData: Partial<User>) => {
-    const newUser: User = {
-      ...userData,
-      id: Math.random().toString(36).substr(2, 9),
-    } as User;
-    setUsers([...users, newUser]);
-    setIsUserModalOpen(false);
+  // СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ В FIREBASE
+  const handleCreateUser = async (userData: Partial<User>) => {
+    try {
+      setStatus('Сохранение пользователя...');
+      const docRef = await addDoc(collection(db, "users"), userData);
+      const newUser = { id: docRef.id, ...userData } as User;
+      setUsers(prev => [...prev, newUser]);
+      setIsUserModalOpen(false);
+      setStatus('Пользователь добавлен!');
+    } catch (e) {
+      console.error("Ошибка сохранения пользователя:", e);
+      setStatus('Ошибка при создании');
+    }
   };
 
   const handleUpdateUser = (userData: Partial<User>) => {
