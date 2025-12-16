@@ -510,5 +510,6 @@ const getVisibleProjects = () => {
   </div> 
 );
 };
+};
 
 export default App;
