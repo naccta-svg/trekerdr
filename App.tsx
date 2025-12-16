@@ -255,9 +255,7 @@ const getVisibleProjects = () => {
           </button>
 <div style={{ padding: '20px' }}>
 
-    </div>
-  );
-          
+         
           {currentUser.role === UserRole.ADMIN && (
             <>
               <button 
