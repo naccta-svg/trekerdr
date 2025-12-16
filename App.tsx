@@ -53,12 +53,6 @@ const App: React.FC = () => {
   // Client Direct Link Simulation
   const [clientProject, setClientProject] = useState<Project | null>(null);
 
-useEffect(() => {
-  fetchUsers(); // Вызываем скачивание из Firebase
-}, []); // [] — значит "выполнить один раз при старте"
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
     
     // Check for project link (Client View)
     const projectId = params.get('project');
@@ -195,10 +189,14 @@ const fetchUsers = async () => {
             console.error("Ошибка при загрузке пользователей:", error);
         }
     };
+
 useEffect(() => {
-        fetchUsers();
-    }, []); // Пустой массив зависимостей гарантирует, что это запустится только один раз при загрузке
-  };
+  fetchUsers(); // Вызываем скачивание из Firebase
+}, []); // [] — значит "выполнить один раз при старте"
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
 
   // Logic to filter projects
   const getVisibleProjects = () => {
