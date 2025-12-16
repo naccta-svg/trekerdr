@@ -9,178 +9,252 @@ import { ClientView } from './components/ClientView';
 import { ProjectChecks } from './components/ProjectChecks';
 import { User, Project, UserRole, ProjectStage, ROLE_TRANSLATIONS } from './types';
 import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, User as UserIcon, Layout, Upload, List } from 'lucide-react';
+// Импорт Firebase
 import { db } from './firebaseConfig';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', password: '123456', role: UserRole.ADMIN, fullName: 'Super Admin' },
 ];
 
-const INITIAL_PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    name: 'Реновация Лофта',
-    startDate: '2023-11-01',
-    endDate: '2024-02-15',
-    stage: ProjectStage.START,
-    architectId: '2',
-    designerId: '7',
-    dates: {
-      mounting: '2023-11-05', measurement: '2023-11-10', electric: '2023-11-20',
-      plumbing: '2023-11-25', walls: '2023-12-05', floor: '2023-12-15',
-      ceiling: '2023-12-25', furniture: '2024-01-20', cleaning: '2024-02-10'
-    },
-    clientName: 'Иван Иванов',
-    clientPhone: '+7 900 123 45 67',
-    totalBudget: 5000000,
-    paidAmount: 2000000,
-    contractNumber: 'Д-2023-001'
-  }
-];
+type ViewState = 'DASHBOARD' | 'ARCHITECTS' | 'DESIGNERS' | 'LINKS' | 'FINANCES' | 'ALL_PROJECTS';
 
-export const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'ARCHITECTS' | 'DESIGNERS' | 'LINKS' | 'FINANCES' | 'PROJECT_CHECKS'>('DASHBOARD');
-  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
-  const [status, setStatus] = useState<string>('Ожидание...');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
+  const [clientProject, setClientProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 1. Загрузка данных из Firebase при старте
   useEffect(() => {
+    // Слушатель пользователей
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const fbUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as User[];
+      setUsers([...INITIAL_USERS, ...fbUsers]);
+    });
+
+    // Слушатель проектов
+    const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
+      const fbProjects = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Project[];
+      setProjects(fbProjects);
+      setLoading(false);
+    });
+
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+    return () => { unsubUsers(); unsubProjects(); };
   }, []);
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
+  // Обработка параметров URL (Client View)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project');
+    if (projectId && projects.length > 0) {
+      const p = projects.find(proj => proj.id === projectId);
+      if (p) setClientProject(p);
+    }
+  }, [projects]);
+  
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [loginError, setLoginError] = useState('');
+
+  const handleLogin = (u: string, p: string) => {
+    const user = users.find(usr => usr.username === u && usr.password === p);
+    if (user) {
+      setCurrentUser(user);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      setLoginError('');
+      setCurrentView('DASHBOARD');
+    } else {
+      setLoginError('Неверный логин или пароль');
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
+    setSelectedProject(null);
+    setIsProjectModalOpen(false);
+    setCurrentView('DASHBOARD');
+    setClientProject(null);
   };
 
-  const handleAddProject = async () => {
+  // --- ФУНКЦИИ FIREBASE (Вместо локальных) ---
+
+  const handleCreateProject = async (newProject: Project) => {
     try {
-      setStatus('Отправка в Firebase...');
-      const docRef = await addDoc(collection(db, "test_projects"), {
-        name: "Тестовый проект " + new Date().toLocaleTimeString(),
-        createdAt: new Date()
-      });
-      setStatus('Успешно! ID: ' + docRef.id);
-    } catch (e) {
-      setStatus('Ошибка: ' + (e as Error).message);
+      await addDoc(collection(db, "projects"), newProject);
+    } catch (e) { console.error("Error adding project: ", e); }
+  };
+
+  const handleUpdateProject = async (updatedProject: Project) => {
+    try {
+      const projectRef = doc(db, "projects", updatedProject.id);
+      await updateDoc(projectRef, { ...updatedProject });
+    } catch (e) { console.error("Error updating project: ", e); }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (window.confirm('Вы уверены, что хотите удалить этот проект?')) {
+      try {
+        await deleteDoc(doc(db, "projects", projectId));
+        setIsProjectModalOpen(false);
+        setSelectedProject(null);
+      } catch (e) { console.error(e); }
     }
   };
 
-  const handleCreateProject = (projectData: Partial<Project>) => {
-    const newProject = { ...projectData, id: Math.random().toString(36).substr(2, 9) } as Project;
-    setProjects([...projects, newProject]);
-    setIsProjectModalOpen(false);
+  const handleCreateUser = async (newUser: Omit<User, 'id'>) => {
+    try {
+      await addDoc(collection(db, "users"), newUser);
+    } catch (e) { console.error(e); }
   };
 
-  const handleUpdateProject = (projectData: Partial<Project>) => {
-    setProjects(projects.map(p => p.id === projectData.id ? { ...p, ...projectData } : p));
-    setIsProjectModalOpen(false);
-    setSelectedProject(undefined);
+  const handleUpdateUser = async (updatedUser: User) => {
+    try {
+      const userRef = doc(db, "users", updatedUser.id);
+      await updateDoc(userRef, { ...updatedUser });
+    } catch (e) { console.error(e); }
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
-    setIsProjectModalOpen(false);
-    setSelectedProject(undefined);
+  const handleDeleteUser = async (userId: string) => {
+    if (window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+      try {
+        await deleteDoc(doc(db, "users", userId));
+      } catch (e) { console.error(e); }
+    }
   };
 
-  const handleCreateUser = (userData: Partial<User>) => {
-    const newUser = { ...userData, id: Math.random().toString(36).substr(2, 9) } as User;
-    setUsers([...users, newUser]);
-    setIsUserModalOpen(false);
+  // --- ОСТАЛЬНАЯ ВАША ЛОГИКА БЕЗ ИЗМЕНЕНИЙ ---
+
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
+    setIsProjectModalOpen(true);
   };
 
-  const handleUpdateUser = (userData: Partial<User>) => {
-    setUsers(users.map(u => u.id === userData.id ? { ...u, ...userData } : u));
+  const handleOpenCreateProject = () => {
+    setSelectedProject(null);
+    setIsProjectModalOpen(true);
   };
 
-  const handleDeleteUser = (id: string) => {
-    setUsers(users.filter(u => u.id !== id));
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (currentUser && e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          const updated = { ...currentUser, photoUrl: url };
+          handleUpdateUser(updated);
+          setCurrentUser(updated);
+      }
   };
 
-  const isAdmin = (user: User | null) => user?.role === UserRole.ADMIN;
+  const getVisibleProjects = () => {
+    if (!currentUser) return [];
+    if (currentUser.role === UserRole.ADMIN) return projects;
+    if (currentUser.role === UserRole.ARCHITECT) return projects.filter(p => p.architectId === currentUser.id);
+    if (currentUser.role === UserRole.DESIGNER) return projects.filter(p => p.designerId === currentUser.id);
+    return [];
+  };
 
-  if (!currentUser) return <Login onLogin={handleLogin} users={users} />;
+  const visibleProjects = getVisibleProjects();
+  const activeProjects = visibleProjects.filter(p => p.stage !== ProjectStage.QUEUE && p.stage !== ProjectStage.COMPLETED);
+  const queueProjects = visibleProjects.filter(p => p.stage === ProjectStage.QUEUE);
+  const completedProjects = visibleProjects.filter(p => p.stage === ProjectStage.COMPLETED);
 
-  if (currentUser.role === UserRole.CLIENT) {
-    const clientProject = projects.find(p => p.clientPhone === currentUser.username);
-    return <ClientView project={clientProject || null} currentUser={currentUser} onLogout={handleLogout} />;
-  }
+  if (clientProject) return <ClientView project={clientProject} onUpdate={handleUpdateProject} />;
+  if (!currentUser) return <Login onLogin={handleLogin} error={loginError} />;
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Загрузка данных...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
       <aside className="w-full md:w-20 bg-white border-r border-gray-100 flex md:flex-col items-center justify-between p-4 sticky top-0 z-30 shadow-sm">
         <div className="flex md:flex-col gap-6 items-center">
-          <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-100">
+          <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-bold text-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
-          <nav className="flex md:flex-col gap-4">
-            <button onClick={() => setCurrentView('DASHBOARD')} title="Все проекты" className={`p-2 rounded-lg ${currentView === 'DASHBOARD' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Folder size={20} /></button>
-            {isAdmin(currentUser) && (
-              <>
-                <button onClick={() => setCurrentView('ARCHITECTS')} className={`p-2 rounded-lg ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><HardHat size={20} /></button>
-                <button onClick={() => setCurrentView('DESIGNERS')} className={`p-2 rounded-lg ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Smile size={20} /></button>
-                <button onClick={() => setCurrentView('FINANCES')} className={`p-2 rounded-lg ${currentView === 'FINANCES' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><Receipt size={20} /></button>
-                <button onClick={() => setCurrentView('LINKS')} className={`p-2 rounded-lg ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}><List size={20} /></button>
-              </>
-            )}
-          </nav>
+          
+          {currentUser.role === UserRole.ADMIN && (
+            <>
+              <button onClick={() => setCurrentView('ALL_PROJECTS')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${currentView === 'ALL_PROJECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-brand-50'}`} title="Все проекты"><List size={24} /></button>
+              <button onClick={() => setCurrentView('ARCHITECTS')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${currentView === 'ARCHITECTS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-brand-50'}`} title="Архитекторы"><HardHat size={24} /></button>
+              <button onClick={() => setCurrentView('DESIGNERS')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${currentView === 'DESIGNERS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-brand-50'}`} title="Дизайнеры"><Folder size={24} /></button>
+              <button onClick={() => setCurrentView('LINKS')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-brand-50'}`} title="Проекты и Ссылки"><Smile size={24} /></button>
+              <button onClick={() => setCurrentView('FINANCES')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${currentView === 'FINANCES' ? 'bg-yellow-50 text-yellow-600' : 'text-gray-400 hover:bg-yellow-50'}`} title="Финансы"><Receipt size={24} /></button>
+              <button onClick={() => setIsUserModalOpen(true)} className="w-10 h-10 text-brand-500 hover:bg-brand-50 rounded-xl flex items-center justify-center transition-all" title="Добавить пользователя"><UserPlus size={24} /></button>
+              <button onClick={handleOpenCreateProject} className="w-10 h-10 text-brand-500 hover:bg-brand-50 rounded-xl flex items-center justify-center transition-all" title="Новый проект"><Plus size={24} /></button>
+            </>
+          )}
         </div>
-        <div className="flex md:flex-col gap-4 items-center">
-          <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 rounded-lg"><LogOut size={20} /></button>
-          <div className="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-medium text-xs border-2 border-white shadow-sm">
-            {currentUser.fullName[0]}
-          </div>
-        </div>
+        <button onClick={handleLogout} className="w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center transition-all" title="Выход"><LogOut size={24} /></button>
       </aside>
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
-        <div className="max-w-7xl mx-auto">
-          {currentView === 'DASHBOARD' && (
-            <div className="space-y-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Проекты студии</h1>
-                  <p className="text-gray-500 mt-1">Добро пожаловать, {currentUser.fullName}</p>
+        <header className="mb-8 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+             {currentUser.role === UserRole.DESIGNER && (
+                <div className="relative group w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    {currentUser.photoUrl ? <img src={currentUser.photoUrl} alt="Logo" className="w-full h-full object-cover" /> : <UserIcon size={24} className="text-gray-400" />}
+                    <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white">
+                        <Upload size={20} /><input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                    </label>
                 </div>
-                {isAdmin(currentUser) && (
-                  <div className="flex gap-3">
-                    <button onClick={() => setIsUserModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg text-sm font-medium"><UserPlus size={18} /> Сотрудник</button>
-                    <button onClick={() => { setSelectedProject(undefined); setIsProjectModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium shadow-md"><Plus size={18} /> Новый проект</button>
-                  </div>
-                )}
-              </div>
-              <GanttChart projects={projects} onProjectClick={(p) => { setSelectedProject(p); setIsProjectModalOpen(true); }} />
-              <AllProjectsList projects={projects} />
-            </div>
-          )}
+             )}
+             <div>
+                <h1 className="text-3xl font-light text-gray-800 uppercase tracking-tight">
+                {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.DESIGNER) ? `Привет, ${currentUser.fullName || currentUser.username}` : 'Панель управления'}
+                </h1>
+                <p className="text-sm text-gray-400 mt-1 capitalize">{ROLE_TRANSLATIONS[currentUser.role]}</p>
+             </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all font-medium text-sm"><LogOut size={16} /> Выйти</button>
+          </div>
+        </header>
 
-          {currentView === 'ARCHITECTS' && isAdmin(currentUser) && <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
-          {currentView === 'DESIGNERS' && isAdmin(currentUser) && <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />}
-          {currentView === 'LINKS' && isAdmin(currentUser) && <ProjectLinksList projects={projects} />}
-          {currentView === 'FINANCES' && isAdmin(currentUser) && <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />}
-        </div>
+        {currentView === 'DASHBOARD' && (
+          <>
+            {currentUser.role === UserRole.ARCHITECT && (
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-8 flex flex-col md:flex-row gap-6 items-center md:items-start">
+                    <div className="w-32 h-32 flex-shrink-0">
+                         {currentUser.photoUrl ? <img src={currentUser.photoUrl} alt="Me" className="w-full h-full object-cover rounded-2xl" /> : <div className="w-full h-full bg-gray-100 rounded-2xl flex items-center justify-center text-gray-300"><UserIcon size={40}/></div>}
+                    </div>
+                    <div className="flex-grow text-center md:text-left">
+                        <h2 className="text-2xl font-bold mb-2">{currentUser.fullName}</h2>
+                        <p className="text-gray-600 mb-4">{currentUser.bio || 'Биография не заполнена'}</p>
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="bg-yellow-50 p-4 rounded-xl inline-block text-left"><p className="text-[10px] uppercase font-bold text-yellow-600 mb-1">Мои Реквизиты</p><p className="text-xs font-mono text-gray-700 whitespace-pre-wrap">{currentUser.paymentDetails || 'Не заполнены'}</p></div>
+                          <div className="bg-yellow-50 p-4 rounded-xl inline-block text-left"><p className="text-[10px] uppercase font-bold text-yellow-600 mb-1">Стоимость м2</p><p className="text-xs font-mono text-gray-700 whitespace-pre-wrap">{currentUser.costPerM2 || '—'}</p></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <GanttChart title="Активные проекты" projects={activeProjects} onProjectClick={handleProjectClick} users={users} currentUser={currentUser} />
+            {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.DESIGNER) && (
+                 <GanttChart title="Завершенные проекты" projects={completedProjects} onProjectClick={handleProjectClick} users={users} currentUser={currentUser} />
+            )}
+            {(currentUser.role === UserRole.ADMIN) && (
+              <><GanttChart title="Проекты в очереди" projects={queueProjects} onProjectClick={handleProjectClick} users={users} currentUser={currentUser} /><div className="mb-6"><ProjectChecks projects={visibleProjects} users={users} role={UserRole.ADMIN} startIndex={150} /></div></>
+            )}
+            {(currentUser.role === UserRole.ARCHITECT || currentUser.role === UserRole.DESIGNER) && <ProjectChecks projects={visibleProjects} users={users} role={currentUser.role} />}
+          </>
+        )}
 
-        {/* Тестовый блок Firebase */}
-        <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
-          <h3>TECT FIREBASE</h3>
-          <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>Добавить проект</button>
-          <p>Статус: {status}</p>
-        </div>
+        {currentView === 'ALL_PROJECTS' && isAdmin(currentUser) && <AllProjectsList projects={projects} users={users} onUpdateProject={handleUpdateProject} onProjectClick={handleProjectClick} />}
+        {currentView === 'ARCHITECTS' && isAdmin(currentUser) && <ArchitectList users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />}
+        {currentView === 'DESIGNERS' && isAdmin(currentUser) && <DesignerList users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />}
+        {currentView === 'LINKS' && isAdmin(currentUser) && <ProjectLinksList projects={projects} />}
+        {currentView === 'FINANCES' && isAdmin(currentUser) && <FinancialTable projects={projects} users={users} onUpdateProject={handleUpdateProject} />}
       </main>
 
-      <ProjectModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} onSave={selectedProject ? handleUpdateProject : handleCreateProject} onDelete={handleDeleteProject} initialProject={selectedProject} currentUserRole={currentUser.role} users={users} />
+      <ProjectModal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} onSave={selectedProject ? handleUpdateProject : handleCreateProject} onDelete={handleDeleteProject} initialProject={selectedProject || undefined} currentUserRole={currentUser.role} users={users} />
       <UserModal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} onSave={handleCreateUser} />
     </div>
   );
 };
+
+function isAdmin(user: User) { return user.role === UserRole.ADMIN; }
+
+export default App;
