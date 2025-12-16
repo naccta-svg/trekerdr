@@ -53,6 +53,10 @@ const App: React.FC = () => {
   // Client Direct Link Simulation
   const [clientProject, setClientProject] = useState<Project | null>(null);
 
+useEffect(() => {
+  fetchUsers(); // Вызываем скачивание из Firebase
+}, []); // [] — значит "выполнить один раз при старте"
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     
