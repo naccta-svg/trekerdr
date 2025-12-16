@@ -512,8 +512,8 @@ const getVisibleProjects = () => {
     ); // Конец return
 }; //
 
-function isAdmin(user: User) {
-  return user.role === UserRole.ADMIN;
-}
+// function isAdmin(user: User) {
+//   return user.role === UserRole.ADMIN;
+// }
 
 export default App;
