@@ -245,7 +245,7 @@ const getVisibleProjects = () => {
     return <Login onLogin={handleLogin} error={loginError} />;
   }
 
-  return (
+return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
       {/* Sidebar */}
       <aside className="w-full md:w-20 bg-white border-r border-gray-100 flex md:flex-col items-center justify-between p-4 sticky top-0 z-30 shadow-sm">
@@ -253,7 +253,12 @@ const getVisibleProjects = () => {
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center font-bold text-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-100">
             <Layout size={20} />
           </button>
-<div style={{ padding: '20px' }}>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+        <div style={{ padding: '20px' }}>
 
          
           {currentUser.role === UserRole.ADMIN && (
@@ -508,7 +513,7 @@ const getVisibleProjects = () => {
       </div>
     </main>
   </div>
-);
+  );
 };
 
 export default App;
