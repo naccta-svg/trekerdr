@@ -16,15 +16,8 @@ import { collection, addDoc, getDocs } from 'firebase/firestore';
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', password: '123456', role: UserRole.ADMIN, fullName: 'Super Admin' },
   // Architects
-  { id: '2', username: 'LM', password: '0505', role: UserRole.ARCHITECT, fullName: 'Любовь Малявина', bio: '', dob: '', paymentDetails: '', costPerM2: '' },
-  { id: '3', username: 'MP', password: '015', role: UserRole.ARCHITECT, fullName: 'Марина Петрова', bio: '', dob: '', paymentDetails: '', costPerM2: '' },
-  { id: '4', username: 'AT', password: '0674', role: UserRole.ARCHITECT, fullName: 'Анна Тырышкина', bio: '', dob: '', paymentDetails: '', costPerM2: '' },
-  { id: '5', username: 'ES', password: '745', role: UserRole.ARCHITECT, fullName: 'Евгения Смирнова', bio: '', dob: '', paymentDetails: '', costPerM2: '' },
-  { id: '6', username: 'EM', password: '852', role: UserRole.ARCHITECT, fullName: 'Елена Мельничук', bio: '', dob: '', paymentDetails: '', costPerM2: '' },
   // Designers
-  { id: '7', username: 'designer', password: '123', role: UserRole.DESIGNER, fullName: 'Сидорова Кристина' },
   // Clients
-  { id: '8', username: 'client', password: '123', role: UserRole.CLIENT, fullName: 'Илья Петров' },
 ];
 
 const INITIAL_PROJECTS: Project[] = [
