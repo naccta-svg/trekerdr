@@ -460,17 +460,17 @@ const getVisibleProjects = () => {
           <AllProjectsList 
             projects={projects} 
             users={users} 
-            onUpdateProject={handleUpdateProject}
+            _onUpdateProject={handleUpdateProject}
             onProjectClick={handleProjectClick}
           />
         )}
 
         {currentView === 'ARCHITECTS' && isAdmin(currentUser) && (
-          <ArchitectList users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+          <ArchitectList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
         )}
 
         {currentView === 'DESIGNERS' && isAdmin(currentUser) && (
-          <DesignerList users={users} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+          <DesignerList users={users} _onUpdateUser={handleUpdateUser} _onDeleteUser={handleDeleteUser} />
         )}
 
         {currentView === 'LINKS' && isAdmin(currentUser) && (
@@ -478,7 +478,7 @@ const getVisibleProjects = () => {
         )}
 
         {currentView === 'FINANCES' && isAdmin(currentUser) && (
-          <FinancialTable projects={projects} users={users} onUpdateProject={handleUpdateProject} />
+          <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />
         )}
 
       </main>
@@ -509,8 +509,8 @@ const getVisibleProjects = () => {
         </button>
         <p style={{ margin: '5px 0' }}>Статус: {status}</p>
 </div>
-    ); // Конец return
-}; //
+    ); 
+};
 
 // function isAdmin(user: User) {
 //   return user.role === UserRole.ADMIN;
