@@ -73,8 +73,10 @@ const App: React.FC = () => {
            // Clear param from url to look cleaner (optional, but good UX)
            window.history.replaceState({}, document.title, "/");
        }
-    }
+}
   }, [projects, users]);
+
+// UI State
   
   // UI State
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
