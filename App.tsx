@@ -5,64 +5,39 @@ import { ProjectModal } from './components/ProjectModal';
 import { UserModal } from './components/UserModal';
 import { FinancialTable } from './components/FinancialTable';
 import { ArchitectList, DesignerList, ProjectLinksList, AllProjectsList } from './components/UserPages';
-import { ClientView } from './components/ClientView';
-import { ProjectChecks } from './components/ProjectChecks';
 import { User, Project, UserRole, ProjectStage } from './types';
 import { LogOut, UserPlus, Plus, HardHat, Folder, Smile, Receipt, Layout, List } from 'lucide-react';
 import { db } from './firebaseConfig';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 
-// Начальные данные (чтобы сайт работал, даже если интернет пропал)
+// Гарантированные данные для входа
 const INITIAL_USERS: User[] = [
   { id: '1', username: 'admin', password: '123456', role: UserRole.ADMIN, fullName: 'Super Admin' },
-];
-
-const INITIAL_PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    name: 'Реновация Лофта',
-    startDate: '2023-11-01',
-    endDate: '2024-02-15',
-    stage: ProjectStage.START,
-    architectId: '2',
-    designerId: '7',
-    dates: {
-      mounting: '2023-11-05', measurement: '2023-11-10', electric: '2023-11-20',
-      plumbing: '2023-11-25', walls: '2023-12-05', floor: '2023-12-15',
-      ceiling: '2023-12-25', furniture: '2024-01-20', cleaning: '2024-02-10'
-    },
-    clientName: 'Иван Иванов',
-    clientPhone: '+7 900 123 45 67',
-    totalBudget: 5000000,
-    paidAmount: 2000000,
-    contractNumber: 'Д-2023-001'
-  }
 ];
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [currentView, setCurrentView] = useState<'DASHBOARD' | 'ARCHITECTS' | 'DESIGNERS' | 'LINKS' | 'FINANCES' | 'PROJECT_CHECKS'>('DASHBOARD');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined);
   const [status, setStatus] = useState<string>('Готов');
 
-  // Загрузка данных
+  // Безопасная загрузка данных при старте
   useEffect(() => {
-    // Восстанавливаем вход
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
-        try {
-            setCurrentUser(JSON.parse(savedUser));
-        } catch (e) {
-            console.error("Ошибка парсинга юзера");
-        }
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.username) setCurrentUser(parsed);
+      } catch (e) {
+        localStorage.removeItem('currentUser');
+      }
     }
 
-    // Загружаем людей из базы
-    const fetchUsers = async () => {
+    const loadData = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "users"));
         const firebaseUsers = querySnapshot.docs.map(doc => ({
@@ -71,13 +46,18 @@ export const App: React.FC = () => {
         })) as User[];
         
         if (firebaseUsers.length > 0) {
-          setUsers([...INITIAL_USERS, ...firebaseUsers]);
+          // Объединяем, проверяя на дубликаты по id
+          setUsers(prev => {
+            const combined = [...prev, ...firebaseUsers];
+            return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+          });
         }
       } catch (e) {
-        console.error("Firebase не доступен, работаем на локальных данных", e);
+        console.error("Ошибка загрузки данных:", e);
+        setStatus('Работа в офлайн режиме');
       }
     };
-    fetchUsers();
+    loadData();
   }, []);
 
   const handleLogin = (user: User) => {
@@ -97,50 +77,23 @@ export const App: React.FC = () => {
       const newUser = { id: docRef.id, ...userData } as User;
       setUsers(prev => [...prev, newUser]);
       setIsUserModalOpen(false);
-      setStatus('Пользователь в базе!');
+      setStatus('Успешно сохранено');
     } catch (e) {
-      // Если база упала, всё равно добавим локально, чтобы работало
-      const newUser = { id: Math.random().toString(), ...userData } as User;
-      setUsers([...users, newUser]);
-      setIsUserModalOpen(false);
-      setStatus('Ошибка Firebase, сохранено локально');
+      console.error(e);
+      setStatus('Ошибка Firebase');
     }
-  };
-
-  const handleAddProject = async () => {
-    try {
-      setStatus('Тест...');
-      await addDoc(collection(db, "test_projects"), { date: new Date() });
-      setStatus('Тест Firebase: ОК');
-    } catch (e) {
-      setStatus('Тест Firebase: ОШИБКА');
-    }
-  };
-
-  const handleCreateProject = (p: Partial<Project>) => {
-    setProjects([...projects, { ...p, id: Math.random().toString() } as Project]);
-    setIsProjectModalOpen(false);
-  };
-
-  const handleUpdateProject = (p: Partial<Project>) => {
-    setProjects(projects.map(item => item.id === p.id ? { ...item, ...p } : item));
-    setIsProjectModalOpen(false);
-  };
-
-  const handleDeleteProject = (id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
-    setIsProjectModalOpen(false);
   };
 
   const isAdmin = (user: User | null) => user?.role === UserRole.ADMIN;
 
-  // Если не залогинен — показываем Login
+  // Если сессия сбилась или юзер не найден — только Login
   if (!currentUser) {
     return <Login onLogin={handleLogin} users={users} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-gray-900">
+      {/* Sidebar */}
       <aside className="w-full md:w-20 bg-white border-r border-gray-100 flex md:flex-col items-center justify-between p-4 sticky top-0 z-30 shadow-sm">
         <div className="flex md:flex-col gap-6 items-center">
           <button onClick={() => setCurrentView('DASHBOARD')} className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-lg">
@@ -161,9 +114,6 @@ export const App: React.FC = () => {
                 <button onClick={() => setCurrentView('FINANCES')} className={`p-2 rounded-lg ${currentView === 'FINANCES' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
                   <Receipt size={20} />
                 </button>
-                <button onClick={() => setCurrentView('LINKS')} className={`p-2 rounded-lg ${currentView === 'LINKS' ? 'bg-brand-50 text-brand-600' : 'text-gray-400'}`}>
-                  <List size={20} />
-                </button>
               </>
             )}
           </nav>
@@ -173,16 +123,24 @@ export const App: React.FC = () => {
         </button>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+      {/* Main Content Area */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto min-h-screen">
         <div className="max-w-7xl mx-auto">
           {currentView === 'DASHBOARD' && (
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">Проекты студии</h1>
+                <div>
+                  <h1 className="text-2xl font-bold">Панель управления</h1>
+                  <p className="text-sm text-gray-500">Пользователь: {currentUser.fullName}</p>
+                </div>
                 {isAdmin(currentUser) && (
                   <div className="flex gap-2">
-                    <button onClick={() => setIsUserModalOpen(true)} className="px-4 py-2 border rounded-lg flex items-center gap-2 bg-white"><UserPlus size={18}/> Юзер</button>
-                    <button onClick={() => { setSelectedProject(undefined); setIsProjectModalOpen(true); }} className="px-4 py-2 bg-brand-600 text-white rounded-lg flex items-center gap-2"><Plus size={18}/> Проект</button>
+                    <button onClick={() => setIsUserModalOpen(true)} className="px-4 py-2 border rounded-lg bg-white flex items-center gap-2 text-sm font-medium">
+                      <UserPlus size={18}/> Добавить сотрудника
+                    </button>
+                    <button onClick={() => setIsProjectModalOpen(true)} className="px-4 py-2 bg-brand-600 text-white rounded-lg flex items-center gap-2 text-sm font-medium">
+                      <Plus size={18}/> Новый проект
+                    </button>
                   </div>
                 )}
               </div>
@@ -193,22 +151,16 @@ export const App: React.FC = () => {
 
           {currentView === 'ARCHITECTS' && <ArchitectList users={users} _onUpdateUser={() => {}} _onDeleteUser={() => {}} />}
           {currentView === 'DESIGNERS' && <DesignerList users={users} _onUpdateUser={() => {}} _onDeleteUser={() => {}} />}
-          {currentView === 'FINANCES' && <FinancialTable projects={projects} users={users} _onUpdateProject={handleUpdateProject} />}
-          {currentView === 'LINKS' && <ProjectLinksList projects={projects} />}
-        </div>
-
-        {/* Индикатор статуса */}
-        <div style={{ position: 'fixed', bottom: 10, right: 10, padding: '10px', background: '#fff9c4', border: '1px solid #fbc02d', borderRadius: '8px', fontSize: '12px', zIndex: 1000 }}>
-          <button onClick={handleAddProject} className="text-xs text-blue-600 underline mb-1 block">Тест связи</button>
-          Статус: {status}
+          {currentView === 'FINANCES' && <FinancialTable projects={projects} users={users} _onUpdateProject={() => {}} />}
         </div>
       </main>
 
+      {/* Модальные окна */}
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
-        onSave={selectedProject ? handleUpdateProject : handleCreateProject}
-        onDelete={handleDeleteProject}
+        onSave={() => setIsProjectModalOpen(false)}
+        onDelete={() => {}}
         initialProject={selectedProject}
         currentUserRole={currentUser.role}
         users={users}
@@ -219,6 +171,11 @@ export const App: React.FC = () => {
         onClose={() => setIsUserModalOpen(false)}
         onSave={handleCreateUser}
       />
+
+      {/* Статус связи */}
+      <div className="fixed bottom-4 right-4 px-3 py-1 bg-white border border-gray-200 rounded-full text-[10px] text-gray-400 shadow-sm z-50">
+        Система: {status}
+      </div>
     </div>
   );
 };
