@@ -507,13 +507,9 @@ const getVisibleProjects = () => {
         <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
             Добавить тестовый проект
         </button>
-        <p style={{ margin: '5px 0' }}>Статус: {status}</p>
-</div>
-    ); 
+<p style={{ margin: '5px 0' }}>Статус: {status}</p>
+    </div>
+  );
 };
-
-// function isAdmin(user: User) {
-//   return user.role === UserRole.ADMIN;
-// }
 
 export default App;
