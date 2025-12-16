@@ -484,7 +484,7 @@ const getVisibleProjects = () => {
       </main>
 
       {/* Modals */}
-      <ProjectModal
+<ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
         onSave={selectedProject ? handleUpdateProject : handleCreateProject}
@@ -493,22 +493,23 @@ const getVisibleProjects = () => {
         currentUserRole={currentUser.role}
         users={users}
       />
-      
+
       <UserModal
         isOpen={isUserModalOpen}
         onClose={() => setIsUserModalOpen(false)}
         onSave={handleCreateUser}
       />
-{/* Тестовый блок Firebase, который видно только админам */}
-<div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
-        <h3>ТЕСТ FIREBASE</h3>
+
+      {/* Тестовый блок Firebase, который видно только админам */}
+      <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
+        <h3>TECT FIREBASE</h3>
         <button onClick={handleAddProject} style={{ padding: '5px', backgroundColor: 'red', color: 'white' }}>
-            Добавить тестовый проект
+          Добавить тестовый проект
         </button>
-<p style={{ margin: '5px 0' }}>Статус: {status}</p>
-    </div>
-  </div>  // Вот сюда мы перенесли закрытие основного блока
-);
-};
+        <p style={{ margin: '5px 0' }}>Статус: {status}</p>
+      </div>
+    </div> // Закрывает основной div
+  ); // Закрывает return
+}; // Закрывает функцию App
 
 export default App;
