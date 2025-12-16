@@ -500,7 +500,6 @@ const getVisibleProjects = () => {
         onSave={handleCreateUser}
       />
     </div>
-  );
 {/* Тестовый блок Firebase, который видно только админам */}
 <div style={{ position: 'fixed', bottom: 0, right: 0, padding: '10px', backgroundColor: 'yellow', border: '2px solid red', zIndex: 999 }}>
         <h3>ТЕСТ FIREBASE</h3>
@@ -508,8 +507,8 @@ const getVisibleProjects = () => {
             Добавить тестовый проект
         </button>
 <p style={{ margin: '5px 0' }}>Статус: {status}</p>
-    </div>
-  );
+  </div>
+);
 };
 
 export default App;
