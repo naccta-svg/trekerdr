@@ -194,12 +194,29 @@ useEffect(() => {
   fetchUsers(); // Вызываем скачивание из Firebase
 }, []); // [] — значит "выполнить один раз при старте"
 
-  useEffect(() => {
+useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // Ссылка для клиента
+    const projectId = params.get('project');
+    if (projectId) {
+      const p = projects.find(proj => proj.id === projectId);
+      if (p) setClientProject(p);
+    }
 
+    // Ссылка для автоматического входа
+    const loginToken = params.get('login_token');
+    if (loginToken) {
+      const user = users.find(u => u.id === loginToken);
+      if (user) {
+        setCurrentUser(user);
+        window.history.replaceState({}, document.title, "/");
+      }
+    }
+  }, [projects, users]);
 
   // Logic to filter projects
-  const getVisibleProjects = () => {
+const getVisibleProjects = () => {
     if (!currentUser) return [];
     if (currentUser.role === UserRole.ADMIN) return projects;
     if (currentUser.role === UserRole.ARCHITECT) {
