@@ -508,8 +508,9 @@ const getVisibleProjects = () => {
             Добавить тестовый проект
         </button>
         <p style={{ margin: '5px 0' }}>Статус: {status}</p>
-    </div>
-};
+</div>
+    ); // Конец return
+}; //
 
 function isAdmin(user: User) {
   return user.role === UserRole.ADMIN;
